@@ -1,5 +1,10 @@
 # Project context
 
+> This is the original project brief, kept for background. **Where it conflicts with
+> `functional-spec.md` (what the app does) or `technical-spec.md` (how it's built),
+> those win.** For example, the "Docker Compose next to the app" Qdrant setup below
+> is under review for Cloud Run (see technical-spec §4).
+
 ## Who I am and why I'm building this
 - I have ML experience but have not built RAG or LLM applications before.
 - I'm building a portfolio project to qualify for LLM-focused "AI engineer" roles.

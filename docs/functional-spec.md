@@ -4,7 +4,11 @@
 
 - **Date:** 2026-11-18
 - **Status:** Draft for review
-- **Companion doc:** `proj.md` (architecture, storage, eval plan). This spec covers **what the app does and what users see**. `proj.md` covers how it's built. Where they overlap, this spec wins on behavior and `proj.md` wins on infrastructure.
+- **Companion docs:**
+  - `project-context.md`: background, original architecture notes, and the eval plan.
+  - `technical-spec.md`: how it's built. It grows as decisions are made.
+
+  This spec covers **what the app does and what users see**. Where they overlap, this spec wins on behavior, and the technical spec wins on how it's built.
 
 Items marked **(call)** were decided by Claude during brainstorming, not by the owner. They're sensible defaults; revisit freely.
 
@@ -46,7 +50,7 @@ Real fantasy players are a welcome secondary audience, but no decision should tr
 
 ## 3. Use cases
 
-Each use case maps to a **route** the agent takes. Routes are explicit, so routing accuracy can be measured (see `proj.md` → Evaluation).
+Each use case maps to a **route** the agent takes. Routes are explicit, so routing accuracy can be measured (see `project-context.md` → Evaluation).
 
 | # | Use case | Route | Example question |
 |---|---|---|---|
@@ -227,7 +231,7 @@ Every live question is stored on the server, for two reasons: finding real failu
 - **Privacy note:** a one-line notice under the input box: "Questions are logged anonymously to improve the app."
 - **Retention:** 90 days **(call)**.
 - The owner can export logs locally, and turn a logged question into an eval case by adding the expected answer.
-- Storage is a simple store on the server (e.g., a SQLite file or JSON-lines on a mounted volume). The exact choice is left to the builder. A hosted tracing tool (LangSmith, Langfuse) is out of scope for v1, but is a candidate experiment later.
+- Storage must live outside the app container (deployment target is Cloud Run, where container disks don't persist). The exact store is decided in the technical spec. A hosted tracing tool (LangSmith, Langfuse) is out of scope for v1, but is a candidate experiment later.
 
 ## 8. Data coverage and freshness
 
@@ -294,7 +298,7 @@ Three were considered:
 - **Separate streams for steps and answer** (rejected): the browser would have to line them back up for no benefit.
 - **Next.js + an AI streaming SDK** (rejected): adds a TypeScript layer between browser and agent, and the SDK's message format would hide the step events the UI is built around.
 
-## 10. Build stages (from `proj.md`, with use-case mapping)
+## 10. Build stages (from `project-context.md`, with use-case mapping)
 
 **Delivery approach (owner decision): small proof of concept first.** No hard launch date is set. But the first milestone is a thin version that works end to end and is **deployed publicly**:
 - stats-only questions (use case 1)
