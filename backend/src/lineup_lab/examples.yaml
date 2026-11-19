@@ -1,0 +1,11 @@
+# Example questions on the landing page, grouped by use case (functional spec §5.1).
+# Written against the current data snapshot; re-check on every data refresh.
+- group: STATS
+  questions:
+    - Who led the league in targets over the last 3 weeks?
+    - How many targets did Puka Nacua have the last 3 weeks?
+    - Start Ja'Marr Chase or CeeDee Lamb this week?
+- group: EDGE CASES
+  questions:
+    - How's Allen doing?
+    - Is Kupp injured?

@@ -1,0 +1,12 @@
+# Nickname -> canonical full name (as in players.name). Keys are matched case-insensitively.
+# Aliases whose player isn't in the loaded data are dropped at startup with a warning.
+cmc: Christian McCaffrey
+jsn: Jaxon Smith-Njigba
+arsb: Amon-Ra St. Brown
+ajb: A.J. Brown
+bijan: Bijan Robinson
+puka: Puka Nacua
+jjettas: Justin Jefferson
+tank: Tank Dell
+jt: Jonathan Taylor
+dk: DK Metcalf

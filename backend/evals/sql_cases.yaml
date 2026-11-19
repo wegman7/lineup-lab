@@ -1,0 +1,143 @@
+# SQL eval cases. `route` is the expected outcome: stats | podcasts | out_of_scope | ambiguous
+# (ambiguous also covers a player name the resolver can't pin down).
+# `reference_sql` is graded by execution match (evals/grading.py); null = route-only case.
+# Data snapshot these were written against: as of Week 10, 2026.
+
+- id: puka_targets_last3
+  question: How many targets did Puka Nacua have over the last 3 weeks?
+  route: stats
+  reference_sql: |
+    SELECT sum(targets) AS targets FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Puka Nacua')
+      AND season = 2026 AND season_type = 'REG' AND week BETWEEN 8 AND 10
+
+- id: target_leaders_last3
+  question: Who were the top 5 players in targets over the last 3 weeks?
+  route: stats
+  reference_sql: |
+    SELECT player_name, sum(targets) AS targets FROM weekly_stats
+    WHERE season = 2026 AND season_type = 'REG' AND week BETWEEN 8 AND 10
+    GROUP BY player_id, player_name ORDER BY targets DESC LIMIT 5
+
+- id: cmc_rush_yards_2026
+  question: How many rushing yards does Christian McCaffrey have this season?
+  route: stats
+  reference_sql: |
+    SELECT sum(rushing_yards) FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Christian McCaffrey')
+      AND season = 2026 AND season_type = 'REG'
+
+- id: chase_rec_yards_2025
+  question: How many receiving yards did Ja'Marr Chase have in the 2025 regular season?
+  route: stats
+  reference_sql: |
+    SELECT sum(receiving_yards) FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Ja''Marr Chase')
+      AND season = 2025 AND season_type = 'REG'
+
+- id: allen_pass_tds_2026
+  question: How many passing touchdowns has Josh Allen thrown this season?
+  route: stats
+  reference_sql: |
+    SELECT sum(passing_tds) FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Josh Allen')
+      AND season = 2026 AND season_type = 'REG'
+
+- id: bijan_ppr_per_game_2026
+  question: What's Bijan Robinson averaging in PPR points per game this season?
+  route: stats
+  reference_sql: |
+    SELECT round(avg(fantasy_points_ppr), 1) FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Bijan Robinson')
+      AND season = 2026 AND season_type = 'REG'
+
+- id: nacua_snaps_week9
+  question: How many offensive snaps did Puka Nacua play in Week 9 this season?
+  route: stats
+  reference_sql: |
+    SELECT offense_snaps FROM snap_counts
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Puka Nacua')
+      AND season = 2026 AND week = 9
+
+- id: rb_ppr_leaders_2026
+  question: Who are the top 5 running backs in PPR points this season?
+  route: stats
+  reference_sql: |
+    SELECT player_name, round(sum(fantasy_points_ppr), 1) AS pts FROM weekly_stats
+    WHERE season = 2026 AND season_type = 'REG' AND position = 'RB'
+    GROUP BY player_id, player_name ORDER BY pts DESC LIMIT 5
+
+- id: qb_pass_yards_last_week
+  question: Which quarterback threw for the most yards last week?
+  route: stats
+  reference_sql: |
+    SELECT player_name, passing_yards FROM weekly_stats
+    WHERE season = 2026 AND week = 10 AND season_type = 'REG' AND position = 'QB'
+    ORDER BY passing_yards DESC LIMIT 1
+
+- id: puka_playoff_rec_yards_2025
+  question: How many receiving yards did Puka Nacua have in the 2025 playoffs?
+  route: stats
+  reference_sql: |
+    SELECT sum(receiving_yards) FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Puka Nacua')
+      AND season = 2025 AND season_type = 'POST'
+
+- id: kicker_fg_leader_2025
+  question: Which kicker made the most field goals in the 2025 regular season?
+  route: stats
+  reference_sql: |
+    SELECT player_name, sum(fg_made) AS fg FROM weekly_stats
+    WHERE season = 2025 AND season_type = 'REG'
+    GROUP BY player_id, player_name ORDER BY fg DESC LIMIT 1
+
+- id: te_receptions_leader_2025
+  question: Which tight end had the most receptions in the 2025 regular season?
+  route: stats
+  reference_sql: |
+    SELECT player_name, sum(receptions) AS rec FROM weekly_stats
+    WHERE season = 2025 AND season_type = 'REG' AND position = 'TE'
+    GROUP BY player_id, player_name ORDER BY rec DESC LIMIT 1
+
+- id: mahomes_ints_2026
+  question: How many interceptions has Patrick Mahomes thrown this season?
+  route: stats
+  reference_sql: |
+    SELECT sum(passing_interceptions) FROM weekly_stats
+    WHERE player_id = (SELECT player_id FROM players WHERE name = 'Patrick Mahomes')
+      AND season = 2026 AND season_type = 'REG'
+
+- id: start_sit_chase_lamb
+  question: Start Ja'Marr Chase or CeeDee Lamb this week?
+  route: stats
+  reference_sql: null
+
+- id: oos_injury
+  question: Is Kupp injured?
+  route: out_of_scope
+  reference_sql: null
+
+- id: oos_other_sport
+  question: Who wins the NBA title this year?
+  route: out_of_scope
+  reference_sql: null
+
+- id: oos_projection
+  question: Project Bijan Robinson's fantasy points for next week.
+  route: out_of_scope
+  reference_sql: null
+
+- id: pod_bears_backfield
+  question: What are podcasts saying about the Bears backfield?
+  route: podcasts
+  reference_sql: null
+
+- id: pod_jsn_analysts
+  question: Which analysts are high on Jaxon Smith-Njigba?
+  route: podcasts
+  reference_sql: null
+
+- id: ambiguous_allen
+  question: How's Allen doing?
+  route: ambiguous
+  reference_sql: null
