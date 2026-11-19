@@ -16,7 +16,8 @@ Each decision records **what** was decided, **why**, and **what was rejected**. 
 ```
 lineup-lab/
 ├── README.md                  # pitch, demo link, results, what failed
-├── docker-compose.yml         # local dev: backend + frontend + qdrant
+├── Dockerfile                 # one image: builds the frontend, serves it from the API (§7)
+├── docker-compose.yml         # added in stage 2, when Qdrant arrives
 ├── docs/
 │   ├── project-context.md     # original brief
 │   ├── functional-spec.md     # what it does
@@ -24,7 +25,6 @@ lineup-lab/
 │   └── plans/                 # implementation plans, one per milestone
 ├── backend/                   # Python project
 │   ├── pyproject.toml
-│   ├── Dockerfile             # API image
 │   ├── src/lineup_lab/
 │   │   ├── api/               # FastAPI app, POST /chat event stream
 │   │   ├── agent/             # LangGraph graph, state, router, nodes
@@ -38,7 +38,6 @@ lineup-lab/
 │   └── tests/
 ├── frontend/                  # React + TypeScript + Vite
 │   ├── package.json
-│   ├── Dockerfile             # builds static files and serves them
 │   └── src/
 └── data/                      # gitignored: audio, transcripts, stats.duckdb
 ```
@@ -124,16 +123,54 @@ This keeps the storage swappable (e.g., moving to Qdrant Cloud or MotherDuck) an
 
 | Decision | Needed by |
 |---|---|
-| LLM, embedding, and reranker providers | Proof-of-concept milestone |
-| Python tooling (package manager, lint, test runner) | Proof-of-concept milestone |
-| Graph skeleton: state shape, nodes, how the router decides | Proof-of-concept milestone |
-| Which stats tables to load, and how the schema is shown to the model | Proof-of-concept milestone |
-| Player name matching approach | Proof-of-concept milestone |
-| Event payload fields for the SSE stream | Proof-of-concept milestone |
-| SQL eval set format and runner | Proof-of-concept milestone |
+| Embedding and reranker providers (LLM decided, §7) | Stage 2 |
 | Qdrant hosting on Cloud Run (§4.1) | First deploy that includes podcasts (stage 2) |
-| Shared-state storage for logging, spend cap, rate limits (§4.2) | Before the public deploy |
-| Frontend → backend routing on Cloud Run (§4.3) | First public deploy |
+| Shared-state storage for logging, spend cap, rate limits (§4.2) | Stage 3 (PoC uses one instance, §7) |
 | Chunking strategy and chunk metadata | Stage 2 |
 | Transcript backup bucket | Stage 2 |
 | CI pipeline | When there's code worth protecting |
+
+## 7. Proof-of-concept decisions
+
+Made for the first milestone (plan: `plans/2026-11-18-poc-stats-agent.md`). Each one is **what / why / rejected**.
+
+**LLM: Claude Opus 5.5 (`claude-opus-5-5`) for every call.** *(owner decision)*
+- Why: strongest text-to-SQL, and SQL accuracy is the headline number. The model is one setting (`LLM_MODEL`), and depth is tuned per step with `effort` (router `low`, SQL `medium`, answer `low`).
+- Rejected for now: a cheap router model plus a strong answer model. It's a good experiment, but only once there's a baseline to compare against.
+
+**Python tooling: uv + ruff + pytest.**
+- Why: uv manages the Python version, the virtualenv, and a lockfile in one fast tool. ruff replaces black, isort, and flake8. pytest is the default.
+- Rejected: Poetry (slower, no Python version management), pip + requirements.txt (no lockfile for transitive dependencies).
+
+**Graph skeleton: `route → resolve → gen_sql ⇄ run_sql → answer`, with `decline` for everything else.**
+- The SQL retry is a **graph edge** (`run_sql → gen_sql` on error, at most 3 attempts), not a tool loop inside the model.
+- Why: each attempt is a visible, countable step. The cap is enforced in our code. Every attempt shows up in the trace and in the eval's "attempts used" number.
+- Rejected: giving the model a `run_sql` tool and letting it loop. The retries would live inside the model's loop, which makes them harder to cap and measure. Revisit if questions start needing several queries.
+
+**Stats tables: four curated tables plus `meta`, with the schema prompt generated from DuckDB.**
+- `players`, `weekly_stats` (~40 fantasy-relevant columns out of nflverse's 150), `snap_counts`, `games`.
+- Column meanings live in DuckDB `COMMENT ON COLUMN`. The schema prompt is built from `information_schema`, so it can't drift from the data.
+- Rejected: the raw 150-column table (wastes tokens, adds confusable columns), and a hand-written schema description (drifts).
+
+**Player names: a deterministic resolver, not the LLM.**
+- Order: alias file → exact name → first or last name → fuzzy match (`difflib`). Ties go to the player with more PPR points in the loaded data, and the agent "assumes" (and says so) when the top candidate has at least 3× the next one's points.
+- Why: testable, explainable, free, and shown in the trace.
+- Rejected: asking the LLM (not testable, costs a call), embedding similarity (overkill for about 2,000 names).
+
+**SSE payloads.**
+- `step {id, kind, status, summary, detail, duration_ms}`, `token {text}`, `source {n, kind, label, columns, rows, row_count, truncated}`, `done {ttft_ms, total_ms, cost_usd, input_tokens, output_tokens}`, `error {message}`.
+- The `chat_id` comes back as the `X-Chat-Id` response header.
+- Defined once in `agent/events.py`. `frontend/src/api/types.ts` mirrors it.
+
+**SQL evals: YAML cases with a reference SQL, graded by execution match.**
+- The agent's result passes when the row counts match and every column of the reference result appears among its columns (order-insensitive, rounded).
+- Why: reference SQL stays correct after a data refresh, where hard-coded numbers go stale.
+- Known limitation: row alignment across columns isn't checked.
+
+**PoC shared state (§4.2): one Cloud Run instance.** *(owner decision)*
+- `max-instances=1`, so the per-IP limit and daily spending cap can live in memory and still be correct.
+- The real store is decided before stage 3, when question logging arrives.
+
+**Frontend routing (§4.3): one container.**
+- FastAPI serves the built React app from the same origin. No CORS, one service, one deploy.
+- Rejected: two Cloud Run services plus CORS configuration.
