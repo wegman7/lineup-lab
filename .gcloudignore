@@ -1,0 +1,14 @@
+# Files NOT uploaded by `gcloud run deploy --source .`.
+# Without this file gcloud would use .gitignore, which excludes data/, and the image needs
+# data/stats.duckdb (it ships inside the image, read-only).
+.git
+.gitignore
+.superpowers/
+**/.env
+**/.env.*
+**/node_modules/
+**/.venv/
+**/__pycache__/
+frontend/dist/
+data/*
+!data/stats.duckdb
