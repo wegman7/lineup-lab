@@ -2,7 +2,7 @@
 
     uv run --env-file .env python -m evals.run_sql_eval [--limit N] [--ids a,b]
 
-Spends real API money (~$0.05 per case with Opus 5.5).
+Spends real API money (~$0.05 per case with Opus 5.5), unless LLM_PROVIDER=local.
 """
 
 import argparse
@@ -68,10 +68,8 @@ def summarize(rows: list[dict]) -> dict:
 
 
 async def main() -> None:
-    import anthropic
-
     from lineup_lab.config import get_settings
-    from lineup_lab.llm.client import LLM
+    from lineup_lab.llm import make_llm
     from lineup_lab.players.resolver import PlayerResolver
     from lineup_lab.stats.db import StatsDB
 
@@ -88,7 +86,7 @@ async def main() -> None:
 
     settings = get_settings()
     db = StatsDB(settings.stats_db_path)
-    llm = LLM(anthropic.AsyncAnthropic(), settings.model)
+    llm = make_llm(settings)
     deps = AgentDeps(db, PlayerResolver.from_db(db), llm, settings)
     rows = []
     for case in cases:
@@ -104,6 +102,7 @@ async def main() -> None:
     summary = summarize(rows)
     out = {
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "provider": settings.llm_provider,
         "model": settings.model,
         "efforts": {"route": settings.effort_route, "sql": settings.effort_sql,
                     "answer": settings.effort_answer},

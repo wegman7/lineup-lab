@@ -11,6 +11,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 @dataclass(frozen=True)
 class Settings:
     stats_db_path: Path
+    llm_provider: str  # "anthropic" (default) or "local" (OpenAI-compatible server, e.g. mlx_lm)
+    local_llm_base_url: str
     model: str
     effort_route: str
     effort_sql: str
@@ -29,6 +31,8 @@ def get_settings() -> Settings:
     static_dir = env("STATIC_DIR")
     return Settings(
         stats_db_path=Path(env("STATS_DB_PATH", REPO_ROOT / "data" / "stats.duckdb")),
+        llm_provider=env("LLM_PROVIDER", "anthropic"),
+        local_llm_base_url=env("LOCAL_LLM_BASE_URL", "http://127.0.0.1:8090/v1"),
         model=env("LLM_MODEL", "claude-opus-5-5"),
         effort_route=env("EFFORT_ROUTE", "low"),
         effort_sql=env("EFFORT_SQL", "medium"),

@@ -174,3 +174,14 @@ Made for the first milestone (plan: `plans/2026-11-18-poc-stats-agent.md`). Each
 **Frontend routing (§4.3): one container.**
 - FastAPI serves the built React app from the same origin. No CORS, one service, one deploy.
 - Rejected: two Cloud Run services plus CORS configuration.
+
+**Local model for development: `mlx_lm.server`, over the OpenAI-compatible protocol.**
+- Set `LLM_PROVIDER=local`, and `llm/local.py` (`LocalLLM`) is used in place of the Anthropic client. It has the same two methods, so the agent, API, and evals don't change. It reports $0 cost.
+- Why: testing the UI, routes, retries, and cancellation shouldn't spend API tokens. MLX runs models natively on Apple silicon, and `mlx-lm` is already installed.
+- The OpenAI-compatible protocol (`POST /v1/chat/completions`) is spoken by `mlx_lm.server`, LM Studio, Ollama, and llama.cpp, so switching servers is a URL change.
+- Structured output: `mlx_lm.server` (v0.31) ignores `response_format`. So the schema is sent anyway (LM Studio enforces it), repeated in the system prompt, and the reply is validated with the same Pydantic models. One retry with the validation error.
+- Not for quality numbers. Eval baselines run on Claude. "Claude vs local model" is a candidate experiment.
+- Rejected:
+  - Ollama's native API (another daemon, and the installed version predates its MLX engine).
+  - Ollama's Anthropic-compatible endpoint (structured outputs not documented, prompt caching unsupported).
+  - The OpenAI SDK (about 15 lines of `httpx` keep the request visible).

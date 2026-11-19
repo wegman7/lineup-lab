@@ -47,19 +47,17 @@ def client_ip(request: Request) -> str:
 
 
 def _real_runner(settings: Settings) -> tuple[Runner, Callable[[], Coverage]]:
-    import anthropic
-
     from lineup_lab.agent.graph import AgentDeps, run_agent
-    from lineup_lab.llm.client import LLM
+    from lineup_lab.llm import make_client, make_llm
     from lineup_lab.players.resolver import PlayerResolver
     from lineup_lab.stats.db import StatsDB
 
     db = StatsDB(settings.stats_db_path)
     resolver = PlayerResolver.from_db(db)
-    client = anthropic.AsyncAnthropic()
+    client = make_client(settings)
 
     def runner(question: str, on_cost: Callable[[float], None]) -> AsyncIterator[Event]:
-        llm = LLM(client, settings.model, on_call=lambda s: on_cost(s.cost_usd))
+        llm = make_llm(settings, on_call=lambda s: on_cost(s.cost_usd), client=client)
         return run_agent(AgentDeps(db, resolver, llm, settings), question)
 
     return runner, db.coverage

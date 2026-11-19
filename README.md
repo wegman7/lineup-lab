@@ -45,6 +45,19 @@ uv run uvicorn lineup_lab.api.app:create_app --factory --env-file .env --reload
 cd ../frontend && npm install && npm run dev
 ```
 
+**No API key? Use a local model (Apple silicon).** Any OpenAI-compatible server works; with
+[mlx-lm](https://github.com/ml-explore/mlx-lm):
+
+```bash
+mlx_lm.server --model mlx-community/Qwen2.5-Coder-14B-Instruct-4bit --port 8090
+# then start the API with:
+LLM_PROVIDER=local LLM_MODEL=mlx-community/Qwen2.5-Coder-14B-Instruct-4bit \
+  uv run uvicorn lineup_lab.api.app:create_app --factory --reload
+```
+
+Good for exercising the UI and agent paths at no cost; answer quality is well below Claude's,
+so eval numbers come from Claude.
+
 Tests: `cd backend && uv run pytest` and `cd frontend && npm test`.
 
 ## Evals
