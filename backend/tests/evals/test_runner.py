@@ -54,3 +54,14 @@ def test_summarize():
     assert s["sql_accuracy"] == "1/2"
     assert s["median_cost_usd"] == 0.02 and s["total_cost_usd"] == 0.07
     assert s["median_ttft_ms"] == 2000
+
+
+def test_results_path_names_model_and_date():
+    from datetime import UTC, datetime
+
+    from evals.run_sql_eval import results_path
+
+    now = datetime(2026, 11, 20, tzinfo=UTC)
+    p = results_path("mlx-community/Qwen2.5-Coder-14B-Instruct-4bit", now)
+    assert p.name == "sql-2026-11-20-qwen2.5-coder-14b-instruct-4bit.json"
+    assert results_path("claude-opus-5-5", now).name == "sql-2026-11-20-claude-opus-5-5.json"

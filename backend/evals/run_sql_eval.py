@@ -48,6 +48,11 @@ async def run_case(deps: AgentDeps, case: dict) -> dict:
     }
 
 
+def results_path(model: str, now: datetime) -> Path:
+    slug = model.rsplit("/", 1)[-1].lower()
+    return HERE / "results" / f"sql-{now:%Y-%m-%d}-{slug}.json"
+
+
 def _ratio(values: list[bool]) -> str:
     return f"{sum(values)}/{len(values)}"
 
@@ -111,7 +116,7 @@ async def main() -> None:
         "cases": rows,
     }  # fmt: skip
     (HERE / "results").mkdir(exist_ok=True)
-    path = HERE / "results" / f"sql-{datetime.now(UTC):%Y-%m-%d}.json"
+    path = results_path(settings.model, datetime.now(UTC))
     path.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
     print(json.dumps(summary, indent=2))
     print(f"wrote {path}")
