@@ -14,6 +14,8 @@ next, and every node is our own code).
 ## Docs are the source of truth
 
 - `docs/functional-spec.md`: what the app does. Wins on behavior.
+- `ARCHITECTURE.md`: the code map (what each package owns, import direction). Update it when
+  a package's job or boundaries change.
 - `docs/technical-spec.md`: how it's built. Wins on implementation. It's a living document:
   when you make a design decision, add it there as **what / why / rejected** (see §7).
 - `docs/project-context.md`: the original brief; the two specs override it.
@@ -57,39 +59,27 @@ Local model instead of Claude (no cost; see README): run
 
 ## Architecture
 
-One request = one `POST /chat` returning a Server-Sent Events stream:
+`ARCHITECTURE.md` is the code map: request flow, what each package owns, and which way
+imports go (`api → agent → llm / stats / players`). Read it first; don't duplicate it here.
+Rules that are easy to break:
 
-```
-api/app.py ─► agent/graph.py run_agent() ─► LangGraph: route → resolve → gen_sql ⇄ run_sql → answer
-                                                        └──────────── decline (any other path)
-```
-
-- **Nodes** (`agent/nodes.py`) emit events through LangGraph's `get_stream_writer()`.
-  `run_agent` streams with `stream_mode=["custom", "values"]`, forwards the custom events, and
-  ends with a `DoneEvent` built from the final state's `calls`.
-- **The SQL retry is a graph edge**, not a model tool loop: `run_sql → gen_sql` on error, up to
-  `sql_max_attempts` (3). Each attempt is a `sql-N` step in the trace.
-- **The SSE contract** lives in `agent/events.py` and is mirrored by hand in
-  `frontend/src/api/types.ts`. Change both together. `chat_id` travels in the `X-Chat-Id`
-  header, not in an event.
-- **Prompts and structured-output schemas** (`RouteDecision`, `SqlDraft`) are all in
-  `agent/prompts.py`. System prompts hold only stable text (rules, generated schema, as-of week)
-  so they can be prompt-cached; per-question content goes in the user message.
+- **Keep the import direction and the single owners:** only `stats/` touches DuckDB, only
+  `llm/` talks to a model, only `ingest/` imports `nflreadpy`/`polars`, and (stage 2) only
+  `search/` talks to Qdrant. `llm/` must stay football-agnostic.
+- **Model-written SQL is untrusted.** Don't loosen `StatsDB`'s guards (read-only, no external
+  access, locked config, 256MB cap, single SELECT, 10s timeout, cell clipping).
+- **The LLM never picks player ids**; `players/` resolves names deterministically.
+- **Nodes emit events** through LangGraph's `get_stream_writer()`. `run_agent` streams with
+  `stream_mode=["custom", "values"]` and ends with a `DoneEvent` built from the final state's
+  `calls`. Each SQL attempt is a `sql-N` step; the retry is a graph edge, not a model tool loop.
+- **The SSE contract** (`agent/events.py`) is mirrored by hand in `frontend/src/api/types.ts`.
+  Change both together. `chat_id` travels in the `X-Chat-Id` header, not in an event.
+- **System prompts hold only stable text** (rules, generated schema, as-of week) so they can be
+  prompt-cached; per-question content goes in the user message. All prompts and schemas live in
+  `agent/prompts.py`.
 - **"Now" means the data's as-of week** (`meta` table), never today's date.
-
-Module boundaries (keep them):
-- `stats/` is the only code that touches DuckDB. `StatsDB` treats model-written SQL as untrusted:
-  read-only connection, `enable_external_access=false`, locked config, 256MB memory cap,
-  DuckDB's parser must see exactly one SELECT, 10s interrupt timer, long cells clipped.
-- `llm/` is the only code that talks to a model. `make_llm(settings)` returns `LLM` (Anthropic
-  SDK) or `LocalLLM` (OpenAI-compatible HTTP); both expose `parse()` and `stream_text()` and
-  report `CallStats` (tokens, cost, time) through an `on_call` hook. The API wires that hook to
-  the daily `SpendTracker`, so cancelled requests still count.
-- `players/` resolves names deterministically (alias file → exact → first/last → fuzzy; "assume"
-  when the top candidate has ≥3× the runner-up's PPR points). The LLM never picks player ids.
-- `ingest/` (the refresh job) is the only code that imports `nflreadpy`/`polars`. Those are in
-  the optional `ingest` group and aren't in the Docker image.
-- `search/` (Qdrant) arrives in stage 2 and will be the only code that talks to Qdrant.
+- **Cost reporting:** every model call reports `CallStats` through `on_call`, which the API wires
+  to the daily `SpendTracker`, so cancelled requests still count. Keep that hook on new calls.
 
 Claude API notes (model `claude-opus-5-5`): thinking can't be disabled, so depth is tuned only
 with `output_config.effort` (per step in `config.py`). `temperature`, `budget_tokens`,

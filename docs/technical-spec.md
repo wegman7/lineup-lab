@@ -16,6 +16,7 @@ Each decision records **what** was decided, **why**, and **what was rejected**. 
 ```
 lineup-lab/
 ├── README.md                  # pitch, demo link, results, what failed
+├── ARCHITECTURE.md            # code map: what each package owns, import direction
 ├── Dockerfile                 # one image: builds the frontend, serves it from the API (§7)
 ├── docker-compose.yml         # added in stage 2, when Qdrant arrives
 ├── docs/
@@ -25,15 +26,7 @@ lineup-lab/
 │   └── plans/                 # implementation plans, one per milestone
 ├── backend/                   # Python project
 │   ├── pyproject.toml
-│   ├── src/lineup_lab/
-│   │   ├── api/               # FastAPI app, POST /chat event stream
-│   │   ├── agent/             # LangGraph graph, state, router, nodes
-│   │   ├── stats/             # DuckDB access, run_sql, schema prompt
-│   │   ├── search/            # search_transcripts(), the only code that talks to Qdrant
-│   │   ├── players/           # name matching ("CMC" → Christian McCaffrey)
-│   │   ├── llm/               # model calls, token and cost tracking
-│   │   ├── ingest/            # the refresh job (§3)
-│   │   └── config.py          # all environment variables, read in one place
+│   ├── src/lineup_lab/        # api, agent, llm, stats, players, ingest (see ARCHITECTURE.md)
 │   ├── evals/                 # test question sets, eval runner, committed results
 │   └── tests/
 ├── frontend/                  # React + TypeScript + Vite
@@ -50,12 +43,7 @@ lineup-lab/
 
 **Rejected:** separate frontend and backend repos. They add coordination overhead with no benefit for a one-person project.
 
-**Module boundaries that matter:**
-- `search/` is the only module that talks to Qdrant. Same rule as `project-context.md`.
-- `stats/` is the only module that talks to DuckDB.
-- Nodes in `agent/` call those modules. They never call the database clients directly.
-
-This keeps the storage swappable (e.g., moving to Qdrant Cloud or MotherDuck) and keeps every query in one place where it's easy to test.
+**Module boundaries:** each external system has exactly one package that talks to it (`stats/` for DuckDB, `llm/` for the model, `search/` for Qdrant in stage 2), and agent nodes go through those packages. This keeps the storage and the model swappable (e.g., moving to Qdrant Cloud or MotherDuck, or Claude to a local model) and keeps every query in one place where it's easy to test. The full code map, with what each package owns and which way imports go, is in `ARCHITECTURE.md`.
 
 **Evals live in `backend/evals/`.** They import the backend package directly, so they test the real code path. Results are committed as files, and the Eval results page (functional spec §5.3) is built from them.
 

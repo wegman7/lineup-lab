@@ -28,7 +28,8 @@ question → route → resolve names → write SQL ⇄ run SQL (≤3 tries) → 
   `token`, `source`, `done`, `error`.
 - **Frontend:** React + TypeScript + Vite, served by the same FastAPI container.
 
-The reasons behind each choice, and what was rejected, are in `docs/technical-spec.md`.
+Where each piece of code lives, and why there, is in `ARCHITECTURE.md`. The reasons behind each
+choice, and what was rejected, are in `docs/technical-spec.md`.
 
 ## Run it locally
 
